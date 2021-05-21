@@ -27,7 +27,7 @@ class GenerateLm(torch.nn.Module):
         super(GenerateLm, self).__init__()
         self.embedding = str2embedding[args.embedding](args, len(args.tokenizer.vocab))
         self.encoder = str2encoder[args.encoder](args)
-        self.target = str2target[args.target](args,len(args.tokenizer.vocab))
+        self.target = str2target[args.target](args, len(args.tokenizer.vocab))
 
     def forward(self, src, seg):
         emb = self.embedding(src, seg)
@@ -94,7 +94,7 @@ if __name__ == '__main__':
 
     with open(args.test_path, mode="r", encoding="utf-8") as f:
         line = f.readline().strip()
-        src = args.tokenizer.convert_tokens_to_ids(args.tokenizer.tokenize(line))
+        src = args.tokenizer.convert_tokens_to_ids([CLS_TOKEN] + args.tokenizer.tokenize(line))
         seg = [1] * len(src)
         beginning_length = len(src)
         if len(src) > args.seq_length:
@@ -109,7 +109,7 @@ if __name__ == '__main__':
             filtered_logits = top_k_top_p_filtering(next_token_logits, args.top_k, args.top_p)
             next_token = torch.multinomial(F.softmax(filtered_logits, dim=-1), num_samples=1)
         
-            src_tensor = torch.cat([src_tensor, next_token.view(1,1)], dim=1)
+            src_tensor = torch.cat([src_tensor, next_token.view(1, 1)], dim=1)
             seg_tensor = torch.cat([seg_tensor, torch.tensor([[1]])], dim=1)
 
         f.write(line + "\n")

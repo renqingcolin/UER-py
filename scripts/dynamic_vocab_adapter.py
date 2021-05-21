@@ -1,4 +1,3 @@
-# -*- encoding:utf-8 -*-
 """
 Modify model's embedding and softmax layers according to the vocabulary.
 """
@@ -14,7 +13,8 @@ sys.path.append(bert_dir)
 
 from uer.utils.vocab import Vocab
 
-def adapter(old_model,old_vocab,new_vocab):
+
+def adapter(old_model, old_vocab, new_vocab):
     new_model = collections.OrderedDict()
 
     embedding_key = "embedding.word_embedding.weight"
@@ -22,7 +22,7 @@ def adapter(old_model,old_vocab,new_vocab):
     softmax_bias_key = "target.mlm_linear_2.bias"
 
     # Fit in parameters that would not be modified.
-    tensor_name=[]
+    tensor_name = []
     for k, v in old_model.items():
         tensor_name.append(k)
         if k not in [embedding_key, softmax_key, softmax_bias_key]:
@@ -75,6 +75,6 @@ if __name__ == '__main__':
 
     old_model = torch.load(args.old_model_path, map_location="cpu")
 
-    new_model = adapter(old_model,old_vocab,new_vocab)
+    new_model = adapter(old_model, old_vocab, new_vocab)
     print("Output adapted new model.")
     torch.save(new_model, args.new_model_path)

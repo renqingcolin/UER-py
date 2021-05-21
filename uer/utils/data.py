@@ -20,6 +20,9 @@ def mask_seq(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, sp
     tokens_index, src_no_pad = create_index(src_no_pad, tokenizer, whole_word_masking, span_masking, span_geo_prob, span_max_length)
     if len(src_no_pad) < len(src):
         src = src_no_pad + (len(src) - len(src_no_pad)) * [PAD_ID]
+    else:
+        src = src_no_pad
+
     random.shuffle(tokens_index)
     num_to_predict = max(1, int(round(len(src_no_pad) * 0.15)))
     tgt_mlm = []
@@ -620,7 +623,7 @@ class AlbertDataset(Dataset):
                     sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line))
                     if len(sentence) > 0:
                         document.append(sentence)
-                    if pos >= end - 1:
+                    if pos >= end:
                         if len(document) >= 1:
                             instances = self.build_instances(document)
                             for instance in instances:
@@ -803,7 +806,7 @@ class BilmDataset(Dataset):
                     seg.append(PAD_ID)
                 pickle.dump((src, tgt_forward, tgt_backward, seg), dataset_writer)
 
-                if pos >= end - 1:
+                if pos >= end:
                     break
 
         dataset_writer.close()
@@ -966,7 +969,8 @@ class T5DataLoader(DataLoader):
                         else:
                             src_with_sentinel.append(SENTINEL_ID)
                             tgt_in_single.append(SENTINEL_ID)
-                            SENTINEL_ID += 1
+                            if SENTINEL_ID < len(self.vocab) - 1:
+                                SENTINEL_ID += 1
                         tgt_in_single.append(tgt_single[mask_index][1])
                         mask_index += 1
                     else:
@@ -999,11 +1003,11 @@ class ClsDataset(Dataset):
     def worker(self, proc_id, start, end):
         print("Worker %d is building dataset ... " % proc_id)
         set_seed(self.seed)
-        f_write = open("dataset-tmp-" + str(proc_id) + ".pt", "wb")
+        dataset_writer = open("dataset-tmp-" + str(proc_id) + ".pt", "wb")
         pos = 0
         with open(self.corpus_path, mode="r", encoding="utf-8") as f:
             while pos < start:
-                line = f.readline()
+                f.readline()
                 pos += 1
             while True:
                 line = f.readline()
@@ -1012,7 +1016,7 @@ class ClsDataset(Dataset):
                 line = line.strip().split('\t')
                 if len(line) == 2:
                     label = int(line[0])
-                    text = " ".join(line[1:])
+                    text = line[1]
                     src = [self.vocab.get(t) for t in self.tokenizer.tokenize(text)]
                     src = [self.vocab.get(CLS_TOKEN)] + src
                     tgt = label
@@ -1024,7 +1028,7 @@ class ClsDataset(Dataset):
                         while len(src) != self.seq_length:
                             src.append(PAD_ID)
                             seg.append(PAD_ID)
-                    pickle.dump((src, tgt, seg), f_write)
+                    pickle.dump((src, tgt, seg), dataset_writer)
                 elif len(line) == 3:  # For sentence pair input.
                     label = int(line[0])
                     text_a, text_b = line[1], line[2]
@@ -1044,14 +1048,14 @@ class ClsDataset(Dataset):
                         while len(src) != self.seq_length:
                             src.append(PAD_ID)
                             seg.append(PAD_ID)
-                    pickle.dump((src, tgt, seg), f_write)
+                    pickle.dump((src, tgt, seg), dataset_writer)
                 else:
                     pass
 
-                if pos >= end - 1:
+                if pos >= end:
                     break
 
-        f_write.close()
+        dataset_writer.close()
 
 
 class ClsDataLoader(DataLoader):
@@ -1151,4 +1155,3 @@ class PrefixlmDataLoader(DataLoader):
             yield torch.LongTensor(src), \
                 torch.LongTensor(tgt), \
                 torch.LongTensor(seg)
-
